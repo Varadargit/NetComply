@@ -1,0 +1,46 @@
+# golden_rules.yaml
+#
+# Defines "correct" state per device role. The drift engine compares
+# each device's actual collected state against the rule set matching
+# its role.
+#
+# severity levels:
+#   info      -> cosmetic, safe to auto-fix
+#   warning   -> should be fixed, safe to auto-fix with rollback checks
+#   critical  -> requires human approval before remediation (e.g. VLAN
+#                changes on live ports, ACL changes)
+
+access_switch:
+  allowed_vlans: [10, 20, 30, 99]        # VLAN 99 = mgmt
+  required_vlans_on_trunk: [10, 20, 30, 99]
+  ntp_servers: ["10.0.0.1", "10.0.0.2"]
+  banner_motd_must_contain: "Authorized access only"
+  interfaces:
+    # per-interface expectations; "*" applies to any interface not
+    # explicitly listed
+    "*":
+      shutdown_if_unused: true
+    GigabitEthernet0/1:
+      description_must_contain: "UPLINK"
+      allowed_vlan: 99
+
+rules_meta:
+  # maps a rule violation type -> severity + human label
+  vlan_not_allowed:
+    severity: critical
+    label: "Unauthorized VLAN present on device"
+  trunk_missing_vlan:
+    severity: warning
+    label: "Trunk port missing a required VLAN"
+  ntp_server_mismatch:
+    severity: warning
+    label: "NTP server list does not match golden config"
+  banner_missing_text:
+    severity: info
+    label: "Login banner missing required text"
+  interface_description_mismatch:
+    severity: info
+    label: "Interface description does not match expected value"
+  unused_interface_not_shutdown:
+    severity: info
+    label: "Unused interface is not administratively shut down"
