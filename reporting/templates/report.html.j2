@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NetComply drift report</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; margin: 40px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 13px; margin-bottom: 24px; }
+  .summary { display: flex; gap: 16px; margin-bottom: 28px; }
+  .summary-card { padding: 12px 20px; border-radius: 8px; font-size: 14px; }
+  .summary-card b { display: block; font-size: 22px; }
+  .sc-critical { background: #fdeaea; color: #a32d2d; }
+  .sc-warning { background: #fdf3e3; color: #854f0b; }
+  .sc-info { background: #eaf1fb; color: #0c447c; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 13px; vertical-align: top; }
+  th { background: #f5f5f3; font-weight: 600; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+  .b-critical { background: #fdeaea; color: #a32d2d; }
+  .b-warning { background: #fdf3e3; color: #854f0b; }
+  .b-info { background: #eaf1fb; color: #0c447c; }
+  .gate-auto { color: #27500a; font-weight: 600; }
+  .gate-approval { color: #a32d2d; font-weight: 600; }
+  code { background: #f0f0ee; padding: 2px 5px; border-radius: 4px; font-size: 12px; }
+  .empty { color: #888; padding: 40px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>NetComply drift &amp; remediation report</h1>
+<div class="meta">Generated {{ generated_at }} &middot; {{ total_findings }} finding(s) across all scanned devices</div>
+
+<div class="summary">
+  <div class="summary-card sc-critical"><b>{{ severity_counts.critical }}</b>Critical</div>
+  <div class="summary-card sc-warning"><b>{{ severity_counts.warning }}</b>Warning</div>
+  <div class="summary-card sc-info"><b>{{ severity_counts.info }}</b>Info</div>
+</div>
+
+{% if rows %}
+<table>
+  <thead>
+    <tr>
+      <th>Device</th>
+      <th>Severity</th>
+      <th>Rule</th>
+      <th>Detail</th>
+      <th>Gate</th>
+      <th>Planned fix</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.hostname }}<br><span style="color:#999">{{ row.scenario }}</span></td>
+      <td><span class="badge b-{{ row.severity }}">{{ row.severity }}</span></td>
+      <td>{{ row.rule_type }}</td>
+      <td>{{ row.detail }}</td>
+      <td>
+        {% if row.gate == "AUTO-SAFE" %}
+          <span class="gate-auto">✓ Auto-safe</span>
+        {% elif row.gate == "APPROVAL REQUIRED" %}
+          <span class="gate-approval">🔒 Approval required</span>
+        {% else %}
+          <span style="color:#999">No action mapped</span>
+        {% endif %}
+        <div style="color:#888; font-size:12px; margin-top:2px;">{{ row.explanation }}</div>
+      </td>
+      <td>{% if row.planned_commands %}<code>{{ row.planned_commands }}</code>{% else %}&mdash;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No drift detected across any scanned device.</div>
+{% endif %}
+
+</body>
+</html>
