@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetComply | Network Compliance</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar"><div class="brand"><span class="brand-mark">N</span><div><strong>NetComply</strong><small>Network configuration assurance</small></div></div><span class="mode-pill">SIMULATION MODE · NO DEVICE CHANGES</span></header>
+<main class="container">
+<section class="intro"><div><p class="eyebrow">NETWORK OPERATIONS / COMPLIANCE</p><h1>Configuration health at a glance.</h1><p class="sub">Run a simulated device scan, inspect policy drift, and review safe remediation proposals.</p></div><div class="run-box"><label for="scenario">Choose a scenario</label><select id="scenario"><option value="everything_wrong">Multiple configuration issues</option><option value="clean">Compliant device</option><option value="rogue_vlan">Unauthorized VLAN</option><option value="missing_trunk_vlan">Missing trunk VLAN</option><option value="ntp_drift">NTP server mismatch</option><option value="collection_failure">Collection timeout (failure handling)</option></select><button id="runScan">Run demo scan <span>→</span></button><p id="runMessage" class="muted" aria-live="polite">All scans use mock device data.</p></div></section>
+<section class="stats" aria-label="Latest scan summary"><article class="stat"><span>Latest status</span><strong id="statStatus">—</strong><small>Most recent scan</small></article><article class="stat"><span>Findings</span><strong id="statFindings">—</strong><small>Detected policy mismatches</small></article><article class="stat"><span>Critical findings</span><strong id="statCritical">—</strong><small>Review first</small></article><article class="stat"><span>Scan history</span><strong id="statScans">0</strong><small>Stored in local SQLite</small></article></section>
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">LATEST RESULT</p><h2 id="resultTitle">Run a scan to get started</h2></div><span id="resultBadge" class="status neutral">NO SCAN</span></div><p id="resultDescription" class="muted">A scan compares simulated device state against the golden configuration rules.</p><div id="errorBox" class="error hidden"></div><div class="table-wrap"><table><thead><tr><th>Severity</th><th>Rule</th><th>Device</th><th>Finding</th></tr></thead><tbody id="findingsBody"><tr><td colspan="4" class="empty">No findings to display yet.</td></tr></tbody></table></div></section>
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">CHANGE CONTROL</p><h2>Remediation proposals</h2></div><span class="subtle-tag">Preview only</span></div><p class="muted">Approval records your decision for the demo. It does not execute commands on a network device.</p><div id="actionsList" class="actions-empty">No remediation plans yet.</div></section>
+<section class="panel"><div class="panel-heading"><div><p class="eyebrow">OBSERVABILITY</p><h2>Recent scan history</h2></div><button class="secondary" id="refreshHistory">Refresh history</button></div><div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Scenario</th><th>Device</th><th>Status</th><th>Findings</th><th></th></tr></thead><tbody id="historyBody"><tr><td colspan="6" class="empty">No scans recorded yet.</td></tr></tbody></table></div></section>
+<section class="panel audit-panel"><div><p class="eyebrow">AUDIT TRAIL</p><h2>Events for selected scan</h2></div><div id="auditList" class="audit-list muted">Run or select a scan to inspect audit events.</div></section>
+<footer><span>NetComply · Portfolio demonstration</span><span>Mock data only · No production credentials · No live remediation</span></footer>
+</main><script src="/static/app.js" defer></script>
+</body></html>

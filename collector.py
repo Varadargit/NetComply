@@ -105,7 +105,7 @@ def collect_from_mock(scenario: str = "clean") -> dict[str, Any]:
         "banner_motd": "Authorized access only. Violators will be prosecuted.",
         "interfaces": {
             "GigabitEthernet0/1": {"description": "UPLINK to Core", "admin_status": "up"},
-            "GigabitEthernet0/2": {"description": "", "admin_status": "up"},
+            "GigabitEthernet0/2": {"description": "", "admin_status": "down"},
         },
     }
 
@@ -135,7 +135,7 @@ def collect_from_mock(scenario: str = "clean") -> dict[str, Any]:
         base["ntp_servers"] = []
         base["banner_motd"] = "Welcome"
         base["interfaces"]["GigabitEthernet0/1"]["description"] = "wrong desc"
-        base["interfaces"]["GigabitEthernet0/2"]["admin_status"] = "up"  # unused, not shut
+        base["interfaces"]["GigabitEthernet0/2"]["admin_status"] = "up"  # deliberately violates unused-port policy
         return base
 
     raise ValueError(f"Unknown mock scenario: {scenario}")

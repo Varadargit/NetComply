@@ -1,129 +1,78 @@
-# NetComply Self-Heal — Stage 1: Drift Detection
+# NetComply — Network Configuration Compliance & Drift Detection
 
-A network configuration compliance and drift detection engine, built
-as the foundation for a self-remediation platform. This is Stage 1:
-**detection only** — no remediation yet, by design (see project
-philosophy below).
+NetComply compares collected device state with YAML golden rules, explains configuration drift, stores scan history, and creates guarded remediation proposals. The included web demo uses **simulated device data only** and never sends configuration commands to network equipment.
 
-## What's built so far
+## Features
 
-- `rules/golden_rules.yaml` — the compliance baseline: what a
-  correctly-configured device should look like, per device role.
-- `collector.py` — pulls normalized device state either from a real
-  device (Netmiko) or from mock data (for safe local development).
-- `drift_detector.py` — compares collected state against golden rules,
-  returns a list of severity-tagged findings.
-- `run_mock_test.py` — proves the detection logic works correctly
-  against five test scenarios before it ever touches a real device.
+1. **Interactive dashboard** — run a named demo scenario and inspect status, severity-tagged findings, remediation plans, and recent scans.
+2. **Drift detection** — validates VLANs, trunk VLANs, NTP servers, banners, and interface policy against `rules/golden_rules.yaml`.
+3. **Scan history and audit trail** — SQLite stores each scan and records scan/approval events. Collection failure is `failed`/unknown, never `compliant`.
+4. **Approval-gated remediation preview** — shows planned commands and risk rationale. Approval is recorded as `approved_simulation`; no device command is executed by the web app.
+5. **Reports and CLI** — retain the existing CSV/HTML reporting pipeline and command-line workflow.
 
-## Why detection is built and tested BEFORE remediation
+## Run locally
 
-Auto-remediation on real network infrastructure is dangerous if the
-detection logic underneath it isn't trustworthy. Getting detection
-provably correct against varied test scenarios first means that when
-remediation is added in Stage 2, it's built on a foundation that's
-already been validated — not on logic that might have bugs.
-
-## Running the mock test
+Requires Python 3.10+.
 
 ```bash
-pip install pyyaml
-python3 run_mock_test.py
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements.txt
+uvicorn app:app --reload
 ```
 
-This runs detection against 5 scenarios (clean, rogue VLAN, missing
-trunk VLAN, NTP drift, and a device with everything wrong) and prints
-a severity-tagged report for each.
+Open http://127.0.0.1:8000. Choose a scenario and select **Run demo scan**. Try `Multiple configuration issues`, then `Collection timeout (failure handling)` to see that failed collection is not treated as compliance.
 
-## Connecting to a real device (Cisco DevNet Sandbox)
+The database is created automatically as `netcomply.db`. Set `NETCOMPLY_DB` to use another path, for example in tests or deployment.
 
-Cisco provides a free, always-on IOS-XE sandbox for exactly this kind
-of testing — no lab setup required:
+## Test
 
-1. Go to https://developer.cisco.com/site/sandbox/ and reserve an
-   "Always-On IOS XE" or similar sandbox.
-2. Note the host, username, and password it gives you.
-3. Use `collect_from_device()` in `collector.py`:
-
-```python
-from collector import collect_from_device
-from drift_detector import detect_drift, load_golden_rules
-
-state = collect_from_device(
-    host="<sandbox-ip>",
-    username="<sandbox-user>",
-    password="<sandbox-password>",
-)
-golden_rules = load_golden_rules("rules/golden_rules.yaml")
-findings = detect_drift(state, golden_rules)
-for f in findings:
-    print(f.severity, f.detail)
-```
-
-You'll likely need to adjust `rules/golden_rules.yaml` and the parsing
-in `_parse_running_config()` to match whatever the sandbox device's
-actual config looks like — that adjustment process is worth
-documenting, since it's a real "adapting to real-world messiness"
-story for an interview.
-
-## Severity model
-
-| Severity  | Meaning                                    | Stage 2 behavior (planned)      |
-|-----------|---------------------------------------------|----------------------------------|
-| info      | Cosmetic (e.g. missing description)         | Safe to auto-fix                |
-| warning   | Should be fixed (e.g. missing NTP server)   | Auto-fix with rollback checks   |
-| critical  | Risk of outage/security issue (e.g. rogue VLAN) | Requires human approval     |
-
-## Stage 2 (in progress): remediation planning
-
-- `remediation/action_map.py` — maps each drift `rule_type` to exact
-  fix commands, plus a `requires_approval` flag set explicitly per
-  action (not auto-derived from severity — see note below).
-- `main.py` — single entry point: collect → detect → plan remediation.
-  Dry-run only, sends nothing to any device.
-
-Run it:
 ```bash
-python3 main.py                       # all 5 mock scenarios
-python3 main.py --scenario ntp_drift  # just one, for faster debugging
+python -m unittest discover -s tests -v
 ```
 
-### Important design note: severity ≠ approval gate
+Tests cover dashboard health, compliant and non-compliant scans, persistence, collection failure semantics, approval auditing, and invalid scenarios.
 
-It's tempting to gate approval purely off the `info`/`warning`/
-`critical` severity in `golden_rules.yaml`, but this project
-deliberately does NOT do that. `unused_interface_not_shutdown` is
-`info` severity (cosmetic drift) but is still marked
-`requires_approval: True` in `action_map.py`, because the *fix* — 
-shutting down a port — carries real outage risk if the interface
-turns out to be in use despite lacking a description. Severity
-describes how bad the drift is; the approval flag describes how risky
-the *fix* is. They're related but not the same axis, and conflating
-them is how "safe" automation accidentally causes an outage.
+## CLI reports
 
-## Reporting
+```bash
+python main.py
+python main.py --scenario ntp_drift
+python main.py --no-report
+```
 
-Every run of `main.py` writes two report files to `reports/`, timestamped:
+## API overview
 
-- **CSV** (`drift_report_<timestamp>.csv`) — flat, importable into a
-  spreadsheet, a ticketing system, or any other tool.
-- **HTML** (`drift_report_<timestamp>.html`) — rendered from a Jinja2
-  template (`reporting/templates/report.html.j2`), grouped severity
-  counts at the top, a full findings table with the remediation gate
-  and planned commands per row.
+- `GET /health` — health and demo-mode marker
+- `GET /api/scenarios` — available simulated scenarios
+- `POST /api/scans` with `{"scenario":"rogue_vlan"}` — run a simulated scan
+- `GET /api/scans` — recent scan history
+- `GET /api/scans/{scan_id}` — findings and remediation plans
+- `GET /api/scans/{scan_id}/audit` — audit events
+- `POST /api/scans/{scan_id}/actions/{action_index}/approve` — record demo approval; does not execute commands
 
-Skip report generation with `python3 main.py --no-report` (useful
-during fast iteration/debugging).
+Interactive API documentation is available at `/docs` while the server is running.
 
-The reporting logic lives entirely in `reporting/report_writer.py`,
-separate from detection and remediation — the report *format* can
-change (add a JSON export, a Slack summary, whatever) without
-touching any of the actual pipeline logic.
+## Safety and limitations
 
-## Next (Stage 3 — not built yet)
+- The browser-triggered scan API only calls `collect_from_mock`; it does not accept device addresses or credentials.
+- Remediation approval is an audit/demo state transition only. It does not connect to devices, apply commands, verify a live change, or perform rollback.
+- The existing `collector.py` contains a separate Netmiko helper for local experiments. It is not wired to the public web UI. Do not expose credentials or enable live execution without separate authentication, authorization, secret management, device allowlists, command validation, backups, rollback, and lab validation.
+- The IOS configuration parser is intentionally basic and should not be considered a production-grade parser for arbitrary device output.
+- SQLite is suitable for this portfolio-scale demo; a multi-user production deployment would need stronger access controls, database operations, retention policy, and monitoring.
 
-- Executor: dry-run mode, pre-change config backup, apply, post-change
-  health verification, auto-rollback on failure
-- Approval gate: CLI or Slack-based human confirmation for
-  `requires_approval` actions before they execute
-- Audit logging to SQLite + Prometheus metrics export
+## Project structure
+
+```text
+app.py                         FastAPI API and web routes
+collector.py                   mock collection + optional Netmiko collector
+drift_detector.py              golden-rule comparison
+remediation/action_map.py      remediation proposal policy
+reporting/                     CSV/HTML reports
+rules/golden_rules.yaml        compliance baseline
+templates/dashboard.html       dashboard markup
+static/app.js                  dashboard interactions
+static/style.css               responsive styles
+tests/test_web_app.py          API and workflow tests
+```
