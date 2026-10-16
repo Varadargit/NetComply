@@ -22,8 +22,6 @@ python -m pip install -r requirements.txt
 uvicorn app:app --reload
 ```
 
-Open http://127.0.0.1:8000. Choose a scenario and select **Run demo scan**. Try `Multiple configuration issues`, then `Collection timeout (failure handling)` to see that failed collection is not treated as compliance.
-
 The database is created automatically as `netcomply.db`. Set `NETCOMPLY_DB` to use another path, for example in tests or deployment.
 
 ## Test
